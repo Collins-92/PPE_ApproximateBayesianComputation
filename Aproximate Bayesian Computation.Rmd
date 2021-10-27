@@ -1,0 +1,105 @@
+---
+title: "Aproximate Bayesian Computation"
+output: html_notebook
+---
+
+#Benefits of working with Bayesian statistics
+1. Everything is on the scale of probability, so there for everything is easy to integrate with other modeling approaches.
+2.Levels of uncertinity can clearly be convaed and specified.
+3. Prior knowledge can be incoperated into models. 
+4. See the relationships between parameters. 
+
+
+Some of the cons
+1. Bayesain models are often run sampling algorithms that can be slow, becoming slower as they run more and more data. 
+2. As models become more complex these models can be difficult to run in the real world. 
+3. MCMC methods become less practical as models become more compelex or the amount of data begins to grow.
+
+ This can be a major down side in real world applications of models of learning and retention mdoels, where applied psychologist might want the benefits of working using Bayesian models, but due to to complexity of the application might not be able to apply the model. 
+ - retaining the model after a training session, predicting out the a more efficent training shceudle for different users. 
+ 
+ Sense and Hendrix have developed tutoring apps which recursivly estimate decay parameters. 
+van der Velde cold start Bayesian methods
+In educational tutoring system parameters are often uniform for all indivdiuals estimated from prior participants and not updtaed to either to cohort. 
+
+To deal with these methods for applied models, researchers have to either simpply there models, losing some psychological plausability or simply the methods of implementaion focusing on the individual. 
+
+
+#Alternative methods
+Variational Bayes 
+AProximate Bayesian computation
+
+Notes from Brandon & Turner (2012)
+
+#Bayes Theorm 
+In common sampling algorithms, Bayes theorm is often simplified to the following expression.
+$$
+P(\theta | D) \text{  }  \alpha \text{  }  P(D|\theta)P(\theta)
+$$
+For many of the popular bayesian sampling algorithms a analytical form of the likelihood function ($P(D|\theta)$).
+
+Two standard cases are, Gibbs sampling and Metropolotis Hasiting sampling.
+
+#Aproxomite Bayesian Computation
+many models do either have do not have an analytical form on might to be difficult to express. 
+For these models one might like to gain the benefits of a Bayesian computation, but with out an anlystical likelihood statement these models must rely on other methods.
+
+ABC methods have been used extensivly in biology, ecology, and in neuro science
+
+Limitations of ABC
+  -the more complicated the model the more the less efficent the sampling approach becomes.
+
+Methods of fitting
+  - simplex algorithm 
+  - full computational exploration.
+  
+Have used simple hierachical design before
+- (Excoffer et al., 2005; Pritchard, Seielstad, Perez-Lezaun, & Feldman, 1999)
+-  
+
+#ABC method 
+  Sample some set of free parameters ($\theta$) and then place them into the model and generate a set of predicted data points $X'$. My comparing the predicted sample $X'$ to the observed data, via a difference metric, estimates of the posterior ($P(/theta|D)$) can be made ($\rho(X',Y)$). Inorder to the algorithm to work we need to understand quantify what the distance metric of interest is. Several difference distance metrics could be used based on the needs of the researcher, ssuch as absolute error, RMSD,  correlation. 
+  
+Given repreated sampling given the distance metric we can aproximate the posterior distribution, where the distance metric is less then some tolerance threshold. 
+$$
+P(\theta|D) \approx P(\theta | \rho(X', Y) < \epsilon )
+$$
+  
+-Two problems of rejection threshold
+1. If the threshold is too small then it becomes diffifult to approxiamte the process of interests.
+2. If the threshold is too large then it too much difference will be observed in the aproximated posterior. 
+
+MCMC ABC
+
+$$
+\alpha = min(1, \frac{\rho(X', Y)_i/\delta_{Tuning}}{\rho(X', Y)_{i-1}/\delta_{Tuning}} )
+$$
+
+-The tuning parameter controls how quickly slowly the the newly sampled parameters will be acceted or rejected. Low values of $\delta$ are more stringent and decrease the acceptance threshold, while larger values of $\delta $ increse the acceptance threshold. 
+
+to determine is $\alpha$ the new sampled value is accepted it is compared against a randomly sampled value $p$, which is less than or equal to $\alpha$ is accepted if not the previous parameter estimate is used. 
+
+
+#Metropolitis algorthm
+Brandon and Turner (2012) developed a method to bipass the demenstion difficulty with ABC method, allowing for different sampling algorithms to work at different levels of the hierarchical structure. 
+Due to the fact that Bayesian hierarchical methods are nested with each level of a hierarhcicay affecting the lower levels, allow for different sampling algorithms to used at each level. Allowing for ABC methods to be used at the lowest levels of the hierarchy and a more formal sampling algorithm to work at the higher levels. Brandon and Turner (2012) used Gibs sampling, how ever not that other sampling algorithsm could work. We take their approach and utilize metroplitis algorithm due to sampling convience. 
+
+$$
+P(\zeta |Y,\theta) \text{  } \alpha \text{ } P(\theta | Y) P(\theta| \zeta) P(\zeta)
+$$
+
+The metropolis algorithm works by comparing the likelihood of two different values, a new value sampled from the prior and a current posterior values, to compute a probability being accepted or not. If the new value is accpeted then it is taken and used to sample parameter at the lower levels of the model. However, if it is rejected then it is again used as the value and new parameters are sampled from the lower levels of the model. This additional sampling algorithm at the higher levels of the model allows for the model to remain portions of the parameter space higher estimated posterior. 
+
+
+$$
+r = \frac{P(\zeta'|\theta)}{(P\zeta*|\theta)}
+$$
+
+Method 
+-We could implement a complex Bayesian model, such as Lee' and Gluck hierarchical change detection algorithm.
+-We could develop more and more complex hierarchical models and then compare them a JAGS or Stan implmentation, and compute the similarity in their effects. 
+
+Results
+
+
+Conclusion
