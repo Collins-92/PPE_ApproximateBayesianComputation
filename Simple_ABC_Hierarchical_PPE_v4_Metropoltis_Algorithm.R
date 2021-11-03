@@ -1,0 +1,343 @@
+#Load the required packages
+library(dplyr)
+library(ggplot2)
+library(truncnorm)
+library(data.table)   
+HDIofMCMC             = function( sampleVec , credMass=0.95 ) {
+  # Computes highest density interval from a sample of representative values,
+  #   estimated as shortest credible interval.
+  # Arguments:
+  #   sampleVec
+  #     is a vector of representative values from a probability distribution.
+  #   credMass
+  #     is a scalar between 0 and 1, indicating the mass within the credible
+  #     interval that is to be estimated.
+  # Value:
+  #   HDIlim is a vector containing the limits of the HDI
+  sortedPts = sort( sampleVec )
+  ciIdxInc = ceiling( credMass * length( sortedPts ) )
+  nCIs = length( sortedPts ) - ciIdxInc
+  ciWidth = rep( 0 , nCIs )
+  for ( i in 1:nCIs ) {
+    ciWidth[ i ] = sortedPts[ i + ciIdxInc ] - sortedPts[ i ]
+  }
+  HDImin = sortedPts[ which.min( ciWidth ) ]
+  HDImax = sortedPts[ which.min( ciWidth ) + ciIdxInc ]
+  HDIlim = c( HDImin , HDImax )
+  return( HDIlim )
+}
+setwd("/Users/michaelcollins/Documents/Thoughts/Aproximate Bayesian Computation")
+source("Truncated_Beta_Distribution_Functions.R")
+#----------------------------------------------------------------------------------------------------------------
+d1a            = read.csv( "/Users/michaelcollins/Documents/Predictive Performance Equation/AHA_Data/UDRI_Data_PPE_Variables_var2.csv" )
+Subject        = d1a[d1a$Subject %in% unique(d1a$Subject), ]
+Subject        = arrange(Subject, user_id, ID)
+#--------------------------------------------------------------------------------
+Subject$Prediction = ifelse(Subject$repetition <= 10, "Fit", "Pred")
+#--------------------------------------------------------------------------------
+Instances = 
+  unique(
+  Subject %>%
+  group_by(ID ) %>%
+  mutate(Marker = length(ID)) %>%
+  select(ID, Marker)
+ ) 
+
+People = 
+  unique(
+    Subject %>%
+      group_by(user_id ) %>%
+      mutate(Marker = length( unique(ID) ) ) %>%
+      select(user_id, Marker)
+  ) 
+
+Subject$Diff_Post = 0
+Subject$tau_Post  = 0
+Subject$s_Post    = 0
+Subject$m_post    = 0
+#----------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------
+#Set the Tuning parameter
+Tuning              = .03
+NumberofSubjects    = length(unique(Subject$user_id))
+NumberofItems       = length(unique(Subject$ID))
+NumberofSamples     = 5000
+setwd("/Users/michaelcollins/Documents/Thoughts/Aproximate Bayesian Computation")
+File_Name = "PPE_Results.txt"
+#----------------------------------------------------------------------------------------------------------------
+Population_tau = rtbeta(1000, .85 * 10  , (1-.85)   * 10,  lower = .01, upper = 1 )
+Population_s   = rtbeta(1000, .05 * 10  , (1-.05)   * 10,  lower = .01, upper = 1 )
+Population_b   = rtbeta(1000, .01 * 25  , (1-.01)   * 25,  lower = .01, upper = .25 )
+Population_m   = rtbeta(1000, .01 * 25  , (1-.01)   * 25,  lower = .01, upper = .25 )
+#----------------------------------------------------------------------------------------------------------------
+par(mfrow=c(2,2))
+hist(Population_tau)
+hist(Population_s)
+hist(Population_b)
+hist(Population_m)
+
+Start = Sys.time()
+for( i in 1 : NumberofSamples ){
+  print(i)
+  #Population Level Distribution
+  Population_tau = rtbeta(1 , .85 * 10  , (1-.85)  * 10,  lower = .01, upper = 1 )
+  Population_s   = rtbeta(1 , .05 * 10  , (1-.05)  * 10,  lower = .01, upper = 1 )
+  Population_b   = rtbeta(1 , .01 * 25 , (1-.01)   * 25,  lower = .01, upper = .25 )
+  Population_m   = rtbeta(1 , .01 * 25 , (1-.01)   * 25,  lower = .01, upper = .25 )
+  
+  Population_tau_variation  = runif(1, 100, 1000)
+  Population_s_variation    = runif(1, 100, 1000)
+  Population_b_variation    = runif(1, 100, 1000)
+  Population_m_variation    = runif(1, 100, 1000)
+  
+  if(i > 1){
+    Prev_tau = unique(Subject$Population_tau_mean_Post)
+    Prev_tau_variation = unique(Subject$Population_tau_sd_Post)
+    #------
+    Prev_tau_LL = prod( dtbeta( unique(Subject$Subject_tau_mean_Post), Prev_tau * Prev_tau_variation, (1-Prev_tau) * Prev_tau_variation, lower = 0, upper = 1 ) )
+         tau_LL = prod( dtbeta( unique(Subject$Subject_tau_mean_Post), Population_tau * Population_tau_variation, (1-Population_tau) * Population_tau_variation, lower = 0, upper = 1 ) )
+    tau_r       = tau_LL/ Prev_tau_LL
+   #---------------------------------------------------------------------------------------------------------------
+    Prev_s = unique(Subject$Population_s_mean_Post)
+    Prev_s_variation = unique(Subject$Population_s_sd_Post)
+    #------
+    Prev_s_LL = prod( dtbeta( unique(Subject$Subject_s_mean_Post), Prev_s * Prev_s_variation, (1-Prev_s) * Prev_s_variation, lower = 0, upper = 1 ) )
+    s_LL = prod( dtbeta(      unique(Subject$Subject_s_mean_Post), Population_s * Population_s_variation, (1-Population_s) * Population_s_variation, lower = 0, upper = 1 ) )
+    s_r       = s_LL/ Prev_s_LL
+    #---------------------------------------------------------------------------------------------------------------
+    Prev_b = unique(Subject$Population_b_mean_Post)
+    Prev_b_variation = unique(Subject$Population_b_sd_Post)    
+    #------
+    Prev_b_LL = prod( dtbeta( unique(Subject$Subject_b_mean_Post), Prev_b * Prev_b_variation, (1-Prev_b) * Prev_b_variation, lower = 0, upper = 1 ) )
+    b_LL = prod( dtbeta(      unique(Subject$Subject_b_mean_Post), Population_b * Population_b_variation, (1-Population_b) * Population_b_variation, lower = 0, upper = 1 ) )
+    b_r       = b_LL/ Prev_b_LL
+    #---------------------------------------------------------------------------------------------------------------
+    Prev_m = unique(Subject$Population_m_mean_Post)
+    Prev_m_variation = unique(Subject$Population_m_sd_Post)
+    #------
+    Prev_m_LL = prod( dtbeta( unique(Subject$Subject_m_mean_Post), Prev_m * Prev_m_variation, (1-Prev_m) * Prev_m_variation, lower = 0, upper = 1 ) )
+    m_LL = prod( dtbeta(      unique(Subject$Subject_m_mean_Post), Population_m * Population_m_variation, (1-Population_m) * Population_m_variation, lower = 0, upper = 1 ) )
+    m_r       = m_LL/ Prev_m_LL
+    #---------------------------------------------------------------------------------------------------------------
+    
+  if( runif(1, 0,1) > tau_r ) {Population_tau = Prev_tau; Population_tau_variation = Prev_tau_variation }  
+  if( runif(1, 0,1) > s_r   ) {Population_s  = Prev_s   ; Population_s_variation   = Prev_s_variation  }  
+  if( runif(1, 0,1) > b_r   ) {Population_b  = Prev_b   ; Population_b_variation   = Prev_b_variation   } 
+  if( runif(1, 0,1) > m_r   ) {Population_m  = Prev_m   ; Population_m_variation   = Prev_m_variation   } 
+    
+  }
+  
+  #Subject Level
+  Subject_tau = rtbeta(NumberofSubjects, Population_tau * Population_tau_variation  , (1 - Population_tau)  * Population_tau_variation ,  lower = .01, upper = 1 )
+  Subject_s   = rtbeta(NumberofSubjects, Population_s   * Population_s_variation    , (1 - Population_s)  * Population_s_variation     ,  lower = .01, upper = 1 )
+  Subject_b   = rtbeta(NumberofSubjects, Population_b   * Population_b_variation    , (1 - Population_b)  * Population_b_variation     ,  lower = .01, upper = .25 )
+  Subject_m   = rtbeta(NumberofSubjects, Population_m   * Population_m_variation    , (1 - Population_m)  * Population_m_variation     ,  lower = .01, upper = .25 )
+  
+  Subject_tau_variation  = runif(NumberofSubjects, 100, 1000)
+  Subject_s_variation    = runif(NumberofSubjects, 100, 1000)
+  Subject_b_variation    = runif(NumberofSubjects, 100, 1000)
+  Subject_m_variation    = runif(NumberofSubjects, 100, 1000)
+  #------------------------------------------------------------------------------------
+  tau_mean_list  = rep(Subject_tau         , times = People$Marker)
+  tau_sd_list  = rep(Subject_tau_variation , times = People$Marker)
+  #----
+  s_mean_list  = rep(Subject_s            , times = People$Marker)
+  s_sd_list    = rep(Subject_s_variation  , times = People$Marker)
+  #----
+  b_mean_list  = rep(Subject_b            , times = People$Marker)
+  b_sd_list    = rep(Subject_b_variation  , times = People$Marker)
+  #----
+  m_mean_list  = rep(Subject_m            , times = People$Marker)
+  m_sd_list    = rep(Subject_m_variation  , times = People$Marker)
+  #------------------------------------------------------------------------------------
+  Item_list = rep(Instances$ID, times = Instances$Marker )
+  length(tau_mean_list)
+  #This needs to be reformulated Item parameters are not consistent across a participants performance
+  
+  # Item Level Distribution
+  Item_tau    = rtbeta(length(tau_mean_list) , tau_mean_list * tau_sd_list , (1 - tau_mean_list) * tau_sd_list, lower = 0, upper = 1 )
+  Item_s      = rtbeta(length(s_mean_list)   , s_mean_list   * s_sd_list   , (1 - s_mean_list)   * s_sd_list, lower = 0, upper = .1 )
+  Item_b      = rtbeta(length(b_mean_list)   , b_mean_list   * b_sd_list   , (1 - b_mean_list)   * b_sd_list, lower = 0, upper = .25 )
+  Item_m      = rtbeta(length(m_mean_list)   , m_mean_list   * m_sd_list   , (1 - m_mean_list)   * m_sd_list, lower = 0, upper = .25 )
+  
+  Item_tau    = rep(Item_tau , times = Instances$Marker )
+  Item_s      = rep(Item_s   , times = Instances$Marker )
+  Item_b      = rep(Item_b   , times = Instances$Marker )
+  Item_m      = rep(Item_m   , times = Instances$Marker )
+  
+  Subject$tau = Item_tau
+  Subject$s   = Item_s
+  Subject$b   = Item_b
+  Subject$m   = Item_m
+  #--------------------------------------------------------------------------------
+  #Computer PEE Paramters
+  Subject$decay     = Subject$b + Subject$m * Subject$CumAveInvLogTime_diff_lag1
+  Subject$Learning  = Subject$N^.1
+  Subject$M         = Subject$Learning * Subject$T^ -Subject$decay
+  Subject$Prob      = 1 / ( 1 + exp( (Subject$tau - Subject$M) /Subject$s ) )
+  
+  #Computer Difference Measures and alpha Values
+  Subject$Diff = sqrt( mean( (Subject$performance[Subject$Prediction == "Fit"] - Subject$Prob[Subject$Prediction == "Fit"] )^2 ) )
+  
+  #Acception_Paramters$Diff  = sum(Acception_Paramters$Diff)
+  p                         = runif(1, 0,1)  
+  Subject$p                 = p
+  Subject$alpha             = dnorm(Subject$Diff/Tuning) / dnorm(Subject$Diff_Post/Tuning)
+  Accept                    = unique(Subject$p < Subject$alpha)
+  
+  if(i == 1){
+    
+    Subject$Sample       = i
+    #---------------------------------------------------------------------------------------------------
+    Subject$Population_tau_mean_Post  = Population_tau
+    Subject$Population_s_mean_Post    = Population_s
+    Subject$Population_b_mean_Post    = Population_b
+    Subject$Population_m_mean_Post    = Population_m
+    #---------------------------------------------------------------------------------------------------
+    Subject$Population_tau_sd_Post  = Population_tau_variation
+    Subject$Population_s_sd_Post    = Population_s_variation
+    Subject$Population_b_sd_Post    = Population_b_variation
+    Subject$Population_m_sd_Post    = Population_m_variation
+    #---------------------------------------------------------------------------------------------------
+    Subject$Subject_tau_mean_Post =  rep(tau_mean_list , times = Instances$Marker )
+    Subject$Subject_s_mean_Post   =  rep(s_mean_list , times = Instances$Marker )
+    Subject$Subject_b_mean_Post   =  rep(b_mean_list , times = Instances$Marker )
+    Subject$Subject_m_mean_Post   =  rep(m_mean_list , times = Instances$Marker )
+    #--------------------------------------------
+    Subject$Subject_tau_sd_Post = rep(tau_sd_list , times = Instances$Marker )
+    Subject$Subject_s_sd_Post   = rep(s_sd_list , times = Instances$Marker )
+    Subject$Subject_b_sd_Post   = rep(b_sd_list , times = Instances$Marker )
+    Subject$Subject_m_sd_Post   = rep(m_sd_list , times = Instances$Marker )
+    #---------------------------------------------------------------------------------------------------
+    Subject$Item_tau_Post  = Item_tau
+    Subject$Item_s_Post    = Item_s
+    Subject$Item_b_Post    = Item_b
+    Subject$Item_m_Post    = Item_m
+    #---------------------------------------------------------------------------------------------------
+    Subject$Perf_Post         = Subject$Prob
+    Subject$Diff_Post         = Subject$Diff
+    Subject$Accept            = 0
+    #Model_Results             = Subject
+    #write.table(Subject, File_Name, row.names = FALSE, col.names = T)
+    
+    Population_Parameters = unique(select(Subject, Sample, 
+                                          Population_tau_mean_Post,
+                                          Population_s_mean_Post,
+                                          Population_m_mean_Post,
+                                          Population_b_mean_Post,
+                                          
+                                          Population_tau_sd_Post,
+                                          Population_s_sd_Post,
+                                          Population_m_sd_Post,
+                                          Population_b_sd_Post
+                                          ))
+    
+
+    Subject_Parameters = unique(select(Subject, Sample, user_id, 
+                                          Subject_tau_mean_Post,
+                                          Subject_s_mean_Post,
+                                          Subject_m_mean_Post,
+                                          Subject_b_mean_Post,
+                                          
+                                          Subject_tau_sd_Post,
+                                          Subject_s_sd_Post,
+                                          Subject_m_sd_Post,
+                                          Subject_b_sd_Post
+    ) ) 
+
+    Individual_Parameters = unique(select(Subject, Sample, user_id, StimID, Learning_Schedule,  
+                                       Item_tau_Post,
+                                       Item_s_Post,
+                                       Item_m_Post,
+                                       Item_b_Post ) ) 
+    
+    Performance = unique(select(Subject, Sample, ID, user_id, StimID, Learning_Schedule, repetition, performance,
+                                          Perf_Post ) ) 
+##Add this type a file saving format to in the last bit of code that iterate afer the initialization
+    write.table(Population_Parameters, paste("Population_Parameters_", File_Name, sep = ""), row.names = FALSE, col.names = T)
+    write.table(Subject_Parameters, paste("Subject_Parameters_", File_Name, sep = ""), row.names = FALSE, col.names = T)
+    write.table(Individual_Parameters, paste("Individual_Parameters_", File_Name, sep = ""), row.names = FALSE, col.names = T)
+    write.table(Performance, paste("Performance_", File_Name, sep = ""), row.names = FALSE, col.names = T)
+    
+
+  } else {
+    
+    Subject$Sample       = i
+    if(unique(Accept) == TRUE){
+      #---------------------------------------------------------------------------------------------------
+      Subject$Population_tau_mean_Post  = Population_tau
+      Subject$Population_s_mean_Post    = Population_s
+      Subject$Population_b_mean_Post    = Population_b
+      Subject$Population_m_mean_Post    = Population_m
+      #---------------------------------------------------------------------------------------------------
+      Subject$Population_tau_sd_Post  = Population_tau_variation
+      Subject$Population_s_sd_Post    = Population_s_variation
+      Subject$Population_b_sd_Post    = Population_b_variation
+      Subject$Population_m_sd_Post    = Population_m_variation
+      #---------------------------------------------------------------------------------------------------
+      Subject$Subject_tau_mean_Post =  rep(tau_mean_list , times = Instances$Marker )
+      Subject$Subject_s_mean_Post   =  rep(s_mean_list , times = Instances$Marker )
+      Subject$Subject_b_mean_Post   =  rep(b_mean_list , times = Instances$Marker )
+      Subject$Subject_m_mean_Post   =  rep(m_mean_list , times = Instances$Marker )
+      #--------------------------------------------
+      Subject$Subject_tau_sd_Post = rep(tau_sd_list , times = Instances$Marker )
+      Subject$Subject_s_sd_Post   = rep(s_sd_list , times = Instances$Marker )
+      Subject$Subject_b_sd_Post   = rep(b_sd_list , times = Instances$Marker )
+      Subject$Subject_m_sd_Post   = rep(m_sd_list , times = Instances$Marker )
+      #---------------------------------------------------------------------------------------------------
+      Subject$Item_tau_Post  = Item_tau
+      Subject$Item_s_Post    = Item_s
+      Subject$Item_b_Post    = Item_b
+      Subject$Item_m_Post    = Item_m
+      #---------------------------------------------------------------------------------------------------
+      Subject$Perf_Post         = Subject$Prob
+      Subject$Diff_Post         = Subject$Diff
+    }
+    
+    Subject$Accept       = as.numeric(Accept)
+    Population_Parameters = unique(select(Subject, Sample, 
+                                          Population_tau_mean_Post,
+                                          Population_s_mean_Post,
+                                          Population_m_mean_Post,
+                                          Population_b_mean_Post,
+                                          
+                                          Population_tau_sd_Post,
+                                          Population_s_sd_Post,
+                                          Population_m_sd_Post,
+                                          Population_b_sd_Post
+    ))
+    
+    
+    Subject_Parameters = unique(select(Subject, Sample, user_id, 
+                                       Subject_tau_mean_Post,
+                                       Subject_s_mean_Post,
+                                       Subject_m_mean_Post,
+                                       Subject_b_mean_Post,
+                                       
+                                       Subject_tau_sd_Post,
+                                       Subject_s_sd_Post,
+                                       Subject_m_sd_Post,
+                                       Subject_b_sd_Post
+    ) ) 
+    
+    Individual_Parameters = unique(select(Subject, Sample, user_id, StimID, Learning_Schedule,  
+                                          Item_tau_Post,
+                                          Item_s_Post,
+                                          Item_m_Post,
+                                          Item_b_Post ) ) 
+    
+    Performance = unique(select(Subject, Sample, ID, user_id, StimID, Learning_Schedule, repetition,performance,
+                                Perf_Post ) ) 
+    
+    ##Add this type a file saving format to in the last bit of code that iterate afer the initialization
+    write.table(Population_Parameters , paste("Population_Parameters_",     File_Name, sep = ""), row.names = FALSE, col.names = F, append=T)
+    write.table(Subject_Parameters    , paste("Subject_Parameters_",        File_Name, sep = ""), row.names = FALSE, col.names = F, append=T)
+    write.table(Individual_Parameters , paste("Individual_Parameters_",     File_Name, sep = ""), row.names = FALSE, col.names = F, append=T)
+    write.table(Performance           , paste("Performance_",               File_Name, sep = ""), row.names = FALSE, col.names = F, append=T)
+    
+    #write.table(Subject, File_Name, append=T, col.names=F, row.names = FALSE  )
+    }
+  
+}
+End = Sys.time()
+End - Start
