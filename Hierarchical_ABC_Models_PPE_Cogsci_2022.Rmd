@@ -1,0 +1,104 @@
+---
+title: "CogSci 2022 - Hierarchial Aproximate Bayesain Computation for Learning and Retention Models "
+output: html_notebook
+---
+
+
+#Introduction
+
+#PPE
+The predictive performance equation is composed of six seperate equations which take into account the number of presentations and time schedule that performacne was completed on. 
+It represents thre different characteristics of learning and forgetting. 
+- power law of learning, is represetned in the learning terms, where the number of presentations if raised to a constact power
+- power law of decay, is represetned in the decay term, represted by model time $T_i$ and the decay parameter
+- spacing effect, is represened in also represetned in the decay term using the $ST_i$ which increases as events become closer togetehr and decease as events are spaced appart. 
+The benefit of this model at least compared to other learning and retention models is that is is tractable enougth to be run to inform adaptive training schedules, accounting for performance at the individual item level. 
+$$
+Performance_i = \frac{1}{1+\frac{\tau - M_i}{s}} 
+$$
+
+$$
+Learning Term_i = N^.1
+$$
+
+$$
+DecayTerm = T^{-decay}
+$$
+$$
+decay = b + m + St_i
+$$
+
+$$
+T_i = 
+$$
+$$
+St_i = 
+$$
+#Hierarchical Models
+Allow the model to be represented at multiple different levels of aggregation
+Allow improved predictions of the individuals in situations were data is noisy 
+
+##Limitations
+Pooling
+#Limitations of exisitng sampling methods 
+-developing large scale models can require extensive work
+-current sampling methods for Bayesian models can be slow when a model is highly complex or there is a large amount data
+-one way to handle this problem is to rely on machine learning techniques which can handle complex data, which can even be merged with pyshcoloical models 
+-the time it takes to run these models can often be time consuming and in applied settings, which in for basic science research is understable and useable. However, in applied research settings at times at the expense of percision it is reasonable to save some effects of time. 
+Along these lines, other methods such as Aproximate Bayesian computation (ABC) can be helpful.
+#Aproximate Bayesian Computation
+Bayesian theorm
+$$
+P(\theta | D) \text{  }  \alpha \text{  }  P(D|\theta)P(\theta)
+$$
+ABC aproximation
+$$
+P(\theta|D) \approx P(\theta | \rho(X', Y) < \epsilon )
+$$
+
+MCMC sampling version of bayesian theorm
+$$
+\alpha = min(1, \frac{\rho(X', Y)_i/\delta_{Tuning}}{\rho(X', Y)_{i-1}/\delta_{Tuning}} )
+$$
+Sampling at the higher levels of aggregation
+$$
+P(\zeta |Y,\theta) \text{  } \alpha \text{ } P(\theta | Y) P(\theta| \zeta) P(\zeta)
+$$
+Metropolities algorithm
+$$
+r = \frac{P(\zeta'|\theta)}{(P\zeta*|\theta)}
+$$
+
+
+##Benefits 
+provides a way to allow for complex and large models to run on a dataset. 
+Does not require a model to specify a likelihood function
+In sloppy models, where many varaibles are on different scales and parametes are not normally distributed, sampling can be inefficent.
+
+##Draw Backs
+ABC models become less efficent as the demension of the model increases. For this resaon additional sampling algorithms must be applied. 
+The results of a ABC model do depend on the summary statistic that is choosen to sample on
+
+##Method Explored in this paper
+Here we explore using ABC hierarchical model to run on several different datasets
+Our ABC model is compared to equivalent model run on JAGS. 
+we compare the models based on time to finish, fit, and predictions
+
+#Conclusion
+
+#Method
+
+#Results 
+
+#Discussion
+##What did we do
+#What did we find
+
+##Limitations
+-Other methods to perform large complex models do exist
+  - variational Bayes
+  - More powerful computing resources
+- This is an aproximation and not a full statistical analysis 
+- Careful consideration to ensure that the models are settling and the proper prior are choosen
+- 
+##Conclusions
